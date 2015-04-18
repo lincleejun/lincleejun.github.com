@@ -1,7 +1,7 @@
 baseurl: /
 auto: true
 markdown: rdiscount
-pygments: true
+highlighter: pygments
 permalink: /:title
 safe: true
 lsi: false
