@@ -1,7 +1,8 @@
 baseurl: /
 auto: true
-markdown: rdiscount
+markdown: redcarpet
 highlighter: pygments
 permalink: /:title
 safe: true
 lsi: false
+mathjax: true
