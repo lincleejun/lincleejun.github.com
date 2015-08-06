@@ -18,16 +18,16 @@ thumb: https://dl.dropboxusercontent.com/u/18322837/cdn/Streetwill/thumbs/peak.j
 
 1.添加`stetho`的依赖
 
-```groovy
+{% highlight groovy %}
 compile 'com.facebook.stetho:stetho:1.1.1'
 compile 'com.facebook.stetho:stetho-okhttp:1.1.1'
 compile 'com.squareup.okhttp:okhttp-urlconnection:2.4.0'
-```
+{% endhighlight %}
 最后一个依赖是使用Volley需要的
 
 2.接着在 Application 的OnCreate中添加
 
-```Java
+{% highlight java %}
 Stetho.initialize(
       Stetho.newInitializerBuilder(this)
         .enableDumpapp(
@@ -35,15 +35,15 @@ Stetho.initialize(
         .enableWebKitInspector(
             Stetho.defaultInspectorModulesProvider(this))
         .build());
-```
+{% endhighlight %}
 
 3.给 `OkHttp` 添加拦截器
 
-```Java
+{% highlight cpp %}
     OkHttpClient client = new OkHttpClient();
     client.networkInterceptors().add(new StethoInterceptor());
     HttpStack stack = new OkHttpStack(client);
-```
+{% endhighlight %}
 
 从前面三步看与使用 OkHttp 是一样的，接下来就不同了。
 
@@ -67,21 +67,21 @@ Tips：
 
 添加了Stetho库之后，可能会遇到
 
-```
+{% highlight java %}
     LICENSE.txt
     NOTICE.txt
-```
+{% endhighlight %}
 
 这两个错误，
 
 在gradle 中添加如下代码即可
 
-```
+{% highlight java %}
     packagingOptions {
         exclude 'META-INF/LICENSE.txt'
         exclude 'META-INF/NOTICE.txt'
     }
-```
+{% endhighlight %}
 
 
 结论：

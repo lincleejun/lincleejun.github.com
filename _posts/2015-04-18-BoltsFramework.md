@@ -23,7 +23,7 @@ thumb: https://dl.dropboxusercontent.com/u/18322837/cdn/Streetwill/thumbs/peak.j
 
 这个库基本没有啥学习成本，下面介绍一些方法
 
-```java
+{% highlight java %}
 saveAsync(obj).continueWith(new Continuation<ParseObject, Void>() {
   public Void then(Task<ParseObject> task) throws Exception {
     if (task.isCancelled()) {
@@ -38,20 +38,20 @@ saveAsync(obj).continueWith(new Continuation<ParseObject, Void>() {
     return null;
   }
 });
-```
+{% endhighlight %}
 
 成功
-```java
+{% highlight java %}
 saveAsync(obj).onSuccess(new Continuation<ParseObject, Void>() {
   public Void then(Task<ParseObject> task) throws Exception {
     // the object was saved successfully.
     return null;
   }
 });
-```
+{% endhighlight %}
 
 奇怪的是没有提供失败这个接口，那遇到失败怎么做？
-```java
+{% highlight cpp %}
 saveAsync(obj).continueWith(new Continuation<ParseObject, Void>() {
   public Void then(Task<ParseObject> task) throws Exception {
     if (task.isFaulted()) {
@@ -61,16 +61,16 @@ saveAsync(obj).continueWith(new Continuation<ParseObject, Void>() {
     return null;
   }
 });
-```
+{% endhighlight %}
 只要continueWith一个task，判断状态，
 
 如何取消一个Task？
 看接口
-```java
+{% highlight cpp %}
 public <TContinuationResult> Task<TContinuationResult> continueWith(
       final Continuation<TResult, TContinuationResult> continuation, final Executor executor,
       final CancellationToken ct)
-```
+{% endhighlight %}
 所以我们只要弄一个`CancellationToken` 然后Cancel就行了.
 同样还可以用 `CancellationTokenSource` 进行取消
 在某一个task内部抛出预定义的异常同样也可以进行错误和取消处理.
@@ -78,13 +78,13 @@ public <TContinuationResult> Task<TContinuationResult> continueWith(
 
 有了上述的针对于单个Task的处理也有对应的多个Task的接口
 
-```java
+{% highlight cpp %}
 public static Task<Task<?>> whenAny(Collection<? extends Task<?>> tasks)
-```
+{% endhighlight %}
 vs
-```java
+{% highlight cpp %}
 public static Task<Void> whenAll(Collection<? extends Task<?>> tasks)
-```
+{% endhighlight %}
 对一堆task有需求的，这操作起来与单个的Task毫无差异。
 
 

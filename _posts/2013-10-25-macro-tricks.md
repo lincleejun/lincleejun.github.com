@@ -18,7 +18,8 @@ tags: c++ macro
 有时候需要定义一些枚举和这些枚举对应的字符串，如：错误代码及错误描述，经常我们按照如下方式进行
 
 复制代码
-```cpp
+
+{% highlight cpp %}
 enum ErrorCode {
     kOK,
     kFailed,
@@ -34,12 +35,14 @@ const char* error_details_ [] = {
     "kFoo",
     "kBar",
 };
-```
+{% endhighlight  %}
+
 复制代码
 当错误代码数量不是很大时，这种维护可能还没问题，当遇到枚举的值发生变更及修改调整等。可能就需要付出惨烈的代价了，因为量大，所以修改起来比较麻烦，还有位置ID的对应等，于是产生了下面一种升级描述方式。
 
 复制代码
-```cpp
+{% highlight cpp %}
+
 struct ErrorDescrible {
     int error_code;
     const char* describle;
@@ -50,7 +53,8 @@ struct ErrorDescrible {
     {kFoo, "kFoo"},
     {kBar, "kBar"},
 };
-```
+{% endhighlight %}
+
 复制代码
 这种方式呢，针对于枚举的值进行任何的变更都将没太大的影响，不再受枚举的值得约束了，同样修改字符串也变得比较直观了，没那么多束手束脚的内容。
 
@@ -61,7 +65,7 @@ struct ErrorDescrible {
 先上代码看看：
 
 复制代码
-```cpp
+{% highlight cpp %}
 #define ERROR_EXPAND(MAP)\
     MAP(OK, 1, "OK")\
     MAP(Failed, 2, "Failed")\
@@ -83,7 +87,7 @@ struct ErrorDescrible {
     ERROR_EXPAND(MAP)
 #undef MAP
 };
-```
+{% endhighlight %}
 复制代码
 完成的功能基本一样，而且还扩展了枚举的值不在是从0开始了，可以说是任意的了。有了这个这个妈妈再也不怕我重复写这块代码了。简洁直观，任意修改，调动。
 

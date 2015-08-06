@@ -30,7 +30,7 @@ thumb: https://dl.dropboxusercontent.com/u/18322837/cdn/Streetwill/thumbs/drum-r
 
 来一段内存申请的函数瞧瞧
 
-```cpp
+{% highlight cpp %}
 void* malloc(size_t size) __THROW {
   void* ptr;
   for (;;) {
@@ -60,14 +60,14 @@ void* malloc(size_t size) __THROW {
   }
   return ptr;
 }
-```
+{% endhighlight %}
 就一堆宏了，说到底都交给tcmalloc去干苦力去，没啥好讲的。
 
 在进入prep_libc.py脚本之前，来一段lib里面的内容看看，
 
 从%VCInstallDir%VC\lib\libcmt.lib中导出关于malloc.obj部分的信息
 
-```
+{% highlight cpp %}
 f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\malloc.obj
 f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\msize.obj
 f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\realloc.obj
@@ -79,15 +79,15 @@ f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\xmt_obj\malloc.obj
 f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\xmt_obj\msize.obj
 f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\xmt_obj\realloc.obj
 f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\xmt_obj\recalloc.obj
-```
+{% endhighlight %}
 其余内存省略了。。
 
 
 从chrome的allocator工程中导出的信息看一下
-```cpp
+{% highlight cpp %}
 ..\..\build\Debug\obj\allocator\allocator_shim.obj
 ..\..\build\Debug\obj\allocator\jemalloc.obj
-```
+{% endhighlight %}
 注意：
 
 allocator工程的内存申请释放函数在allocator_shim.obj中。
@@ -99,7 +99,7 @@ allocator工程的内存申请释放函数在allocator_shim.obj中。
 
 上prep_libc.py
 
-```python
+{% highlight python %}
 #!/usr/bin/env python
 # Usage: prep_libc.py <VCLibDir> <OutputDir> <arch>
 #
@@ -162,15 +162,15 @@ def main():
 
 if __name__ == "__main__":
   sys.exit(main())
-```
+{% endhighlight %}
 
 内容不多，看vspaths就是构造一个路径，与平台及体系结构有关。
 
 具体路劲参照这个
 
-```cpp
+{% highlight cpp %}
 f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\malloc.obj
-```
+{% endhighlight %}
 
 objfiles就是我们要替换的一些obj文件
 
@@ -179,9 +179,9 @@ objfiles就是我们要替换的一些obj文件
 
 大家可能还有一个小疑问就是，
 
-```
+{% highlight cpp %}
 f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\malloc.obj
-```
+{% endhighlight %}
 
 这个路劲，基本上没有人的电脑上有这么一个路劲，那他到底是什么呢？或者平时调试标准库的时候，就会弹出一个这么样的路径，提示我们有错。问题是都没有这个路劲？
 

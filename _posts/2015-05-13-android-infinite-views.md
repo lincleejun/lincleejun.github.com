@@ -27,7 +27,7 @@ thumb: https://dl.dropboxusercontent.com/u/18322837/cdn/Streetwill/thumbs/peak.j
 
 所以有了一个修饰基类
 
-```java
+{% highlight cpp %}
 public abstract class BaseViewDecorator<DecoratedView, ScrollListener> {
 
   private static final int DEFAULT_PRELOAD_OFFSET = 5;
@@ -77,9 +77,9 @@ public abstract class BaseViewDecorator<DecoratedView, ScrollListener> {
     return this;
   }
 }
-```
+{% endhighlight %}
 
-```java
+{% highlight cpp %}
 public interface LoadingDelegate {
 
   // call when need load data.
@@ -91,13 +91,13 @@ public interface LoadingDelegate {
   // if all data loaded, we'll not load any more.
   boolean isAllDataLoaded();
 }
-```
+{% endhighlight %}
 这个基类的主要作用就是监控`DecoratedView`的滚动消息，当上面描述的「适当时机」调用`delegate`的方法，通知外部进行数据加载。
 
 
 对于 `AbsListView` 的实现
 
-```
+{% highlight cpp %}
 // scroll up
 if (previewsVisibleItem != -1 && previewsVisibleItem < firstVisibleItem) {
   if (!getLoadingDelegate().isLoading() && !getLoadingDelegate().isAllDataLoaded()) {
@@ -108,14 +108,14 @@ if (previewsVisibleItem != -1 && previewsVisibleItem < firstVisibleItem) {
     }
   }
 }
-```
+{% endhighlight %}
 
 很简单，就是判断是否快要显示完全了，然后调用 `onLoadMore`。
 
 
 再看一下RecyclerView的实现
 
-```
+{% highlight java %}
 
 int firstVisibleItem = positionHelper.findFirstVisibleItemPosition();
 
@@ -131,7 +131,7 @@ if (previewsVisibleItem != -1 && previewsVisibleItem < firstVisibleItem) {
     }
   }
 }
-```
+{% endhighlight %}
 
 其实大体上基本一样，不一样的就是没法直接拿到`firstVisibleItem`  `visibleItemCount` 和 `totalItemCount` 了。
 所以我们要想法搞定。
@@ -141,7 +141,7 @@ if (previewsVisibleItem != -1 && previewsVisibleItem < firstVisibleItem) {
 
 直接上代码吧。
 
-```
+{% highlight java %}
 
   View findOneVisibleChild(int fromIndex, int toIndex, boolean completelyVisible,
                            boolean acceptPartiallyVisible) {
@@ -174,7 +174,7 @@ if (previewsVisibleItem != -1 && previewsVisibleItem < firstVisibleItem) {
     }
     return partiallyVisible;
   }
-```
+{% endhighlight %}
 
 [RecyclerViewPositionHelper](https://github.com/vinaysshenoy/mugen/blob/master/library/src/main/java/com/mugen/attachers/RecyclerViewPositionHelper.java)
 
