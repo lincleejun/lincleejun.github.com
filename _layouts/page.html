@@ -1,71 +1,14 @@
 ---
-layout:           default
+layout: default
 ---
-<script type="text/javascript"
-    src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
-</script>
-<div id="head">
-	<div class='main'>    
-	<ul>
-    	<li class='logo'><a href="/" title="Home">Dawn Tavern</a></li>
-		<li><a href="/" title="Home">首页</a></li>
-		<li><a href="/blogs" title="文章列表">所有文章</a></li>
-		<li><a href="/about" title="About">About</a></li>
-	</ul>
-	<div class="social">
-<!--		<a class="douban" href="http://www.douban.com/people/chibao007/" title="豆瓣">豆瓣</a> -->
-		<a class="weibo" href="http://weibo.com/u/1868009360" title="微博">微博</a>
-		<a class="github" href="https://github.com/lincleejun" title="GitHub">GitHub</a>
-		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
-	</div>
-	<form class="search" action="http://google.com/search" method="get">
-		<input class="alignright" type="text" name="q" results="0">
-        <input type="hidden" name="q" value="site:lincleejun.github.com">
-	</form>
-	</div>
-	<ul class="index-top"> </ul>
-</div>
+<div class="post">
 
-<div id="content">
-    {{ content }}
-</div><!-- #content --> 
+    <header class="post-header">
+        <h1 class="post-title">{{ page.title }}</h1>
+    </header>
 
-<div id="about">
-    <div class="about-content">
-		<br>
-        <div class="clearfix">
-            <div class="about-left">
-                <h2>Friends</h2>
-				
-				<p><a href="http://lianliuwei.github.io/" class="external" target="_blank" title="loyoen">lianliuwei</a>
-				</p>
-                <p><a href="http://liuxiong332.github.io/" class="external" target="_blank" title="loyoen">liuxiong</a>
-                </p>
-<!--
-				<p><a href="http://loyoen1990.blog.163.com/" class="external" target="_blank" title="loyoen">loyoen</a>
-			  <br/>
-              <a href="http://kymowind.blog.163.com/" class="external" target="_blank" title="Kymo">Kymo</a><br/>
-			  <a href="http://mawenhao19930620.blog.163.com/" class="external" target="_blank" title="GhostBoyZone">GhostBoyZone</a><br/>
-              </p>   
-			  -->
-			</div>
-            <div class="about-left about-more">
-                <h2>Theme</h2>
-                {% for post in site.categories.theme %}
-                    <a href="{{ post.url }}" title="{{ post.description }}">{{ post.title }}</a><br/>
-                {% endfor %}
-            </div>
-            <div class="about-left about-more">
-                <h2>About</h2>
-                <p>
-                    泪牛瞒面 <a href="http://weibo.com/u/1868009360" class="external" target="_blank" title="linc的新浪微博">@新浪微博</a><br/>
-                    
-                   linc <a href="https://github.com/lincleejun" class="external" target="_blank" title="linc的github">@GitHub</a><br/>
-                </p>
-            </div>
-        </div>
-        <div class="copyright" style="text-align:center">
-            <p>Copyright © 2013   <a href="/about" title="linc_lee" target="_blank">linc_lee</a> </p>
-        </div>
-    </div>
+    <article class="post-content">
+        {{ content }}
+    </article>
+
 </div>

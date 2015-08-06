@@ -1,0 +1,1053 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Dawn Tavern</title>
+    <description></description>
+    <link>http://yourdomain.com/</link>
+    <atom:link href="http://yourdomain.com/feed.xml" rel="self" type="application/rss+xml"/>
+    <pubDate>Thu, 06 Aug 2015 18:18:45 +0800</pubDate>
+    <lastBuildDate>Thu, 06 Aug 2015 18:18:45 +0800</lastBuildDate>
+    <generator>Jekyll v2.5.3</generator>
+    
+      <item>
+        <title>gralde android应用时遇到的一些坑</title>
+        <description>&lt;h2 id=&quot;section&quot;&gt;背景&lt;/h2&gt;
+&lt;p&gt;现有有一个辅助debug的库，希望在debug的情况下使用起来，帮助更友好的调试，而release得时候，这个库直接不可见，而且最好是不用更改现有的gradle installDebug、gradle installRelease的使用方式。于是有了以下的一对「坑爹」之旅。&lt;/p&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;解决方法&lt;/h2&gt;
+
+&lt;p&gt;1.通过exclude folder的方法
+大体思路，就是在debug的时候，编译某个folder下得内容，而release得时候就将这个目录下得内容给去掉，由于我还更改了Application的名字，还使用到了 placeHolder。&lt;/p&gt;
+
+&lt;p&gt;然后问题就来了，发现在build.gradle中，里面的config都是静态写死的，除了已经提供的变量是独立的外，自己定义的都是共享的数据，所以若我想debug包含某个目录，release 不包含，或者默认不包含，debug包含均是做不到的- -~~。
+可能你看完上面那句话你不会信，堂堂一个gradle居然连这个feature都搞不定？还真比较难搞！！！因为debug、release都是固定写死了！你要去控制共享的sourceSets下面的java srcDirs 这下子就等于 多个buildtype下得动作只和！ 所以目的肯定是达不到了！&lt;/p&gt;
+
+&lt;p&gt;又想假如我能够得到当前的编译类型是谁？ 动态给他添加不就可以了吗？兴高采烈的我，果断去Google了一把，结果失望而归！没有现成的告诉你现在到底是编译哪一个，编译类型是谁？。。。这果断不靠谱呀！ 于是我又开始各种搜，在&lt;a href=&quot;http://stackoverflow.com/questions/25739163/how-to-get-current-buildtype-in-android-gradle-configuration&quot;&gt;stack overflow&lt;/a&gt;上搜到了一个帖子，告诉我如何能得到当前的buildtype，然后就将代码果断撸过来，运行起来，结果发现，获取的当前build type时机居然是编译完成后，这更不靠谱了！ 都编译完了，要你何用？&lt;/p&gt;
+
+&lt;p&gt;于是找到还有doFirst之类的函数，也就是说，我能再这个task执行之前去执行一些我想要的动作，看起来还挺符合我的预期的！结果运行结果把我吓尿了！在这个task执行前还是没法拿到这个类型，因为执行的当前task是通过depends去执行的我拿current build type的task的。看起来又不靠谱了！&lt;/p&gt;
+
+&lt;p&gt;通过这个task的折腾呢，get到一个新技能就是task的执行分三个阶段，1.doFirst，这个时候没执行任何task，2.depends on的task及自身的task，3.doLast，这就扫尾了！&lt;/p&gt;
+
+&lt;p&gt;其实到这儿的时候，我已经快崩溃了！这屌的一个gradle居然这么简单的事都干不鸟！于是我就快速的撸了一遍gradle user guide。 最后发现俩小小的线索。&lt;/p&gt;
+
+&lt;p&gt;我自己写一个task，间接依赖「installDebug」，这样，在debug的时候，就调用这个task，去添加一些路劲，参数啥的，看起来也挺美好的！
+于是就撸起来了，写完后 运行我的task，  奇妙的可以正常编译了，对于我来说太fancy了！！  于是果断尝试了下release，结果发现不对，我的task还是被执行了！！ 这时候我就当头一棒，纳尼，我都没让你执行，你居然要执行？ 我还以为我姿势错了！ 赶紧写一个了一个空得task，里面就只调用println就行了！发现debug release都会运行！！   看到这个的我整个人都不好了！ 还没见过定义函数没人调用就自己跑起来的！  不科学啊！&lt;/p&gt;
+
+&lt;p&gt;于是继续撸「gradle user guide」看到两个不错的点一个是给task 后面添加一个«, 另外一个是gradle 命令执行的是调用-x 可以不执行某个任务.&lt;/p&gt;
+
+&lt;p&gt;那好,有了这些利器,就果断用起来，操刀上阵运行后发现「«」操作符其实是doLast的简写！天哪噜，要不要这么忽悠人！！！就等于没用呗！&lt;/p&gt;
+
+&lt;p&gt;还好还有一根救命稻草，继续试， gradle -x 执行的后果也是血淋淋的！毛用都没用！！&lt;/p&gt;
+
+&lt;p&gt;中途还用过其他的各种姿势！！！！我的天呀！对于gradle 我算是服了！ 进入完全抓狂的节奏！！&lt;/p&gt;
+
+&lt;p&gt;还尝试过task.ready等看来很虚幻的姿势，但 都是然并卵啊！！！！&lt;/p&gt;
+
+&lt;p&gt;然后突然想到使用另外一招，不这样exclude目录，作为一个依赖库给现有的代码依赖，在debug的时候依赖一个debug的库，release的时候依赖一个empty库就行！这样呢，就需要稍微改一下现有的代码，经过我再次的确认代码后，改动倒不是很大， 还能接受！！&lt;/p&gt;
+
+&lt;p&gt;2.新建library，让现有的代码来依赖！
+开始见library的时候也挺狗血的！我建立了一个library，结果各种编译不过， 说apply plugin “com.android.library”不存在，我天，受不鸟饿了！然后让隔壁坐小哥试试，是不是我IDE出问题了！结果他也出现了类似的问题！！！！！
+类似的问题！！！，哎，前前后后弄了20~30min，也不知由于什么原因，捣鼓自然能编译了！！！ 到这个时候，其实还没写任何代码，只感觉满脑子的「草泥马」飘过！！！
+剩下的撸代码的过程就没啥了！&lt;/p&gt;
+
+&lt;p&gt;conclusion：&lt;/p&gt;
+
+&lt;p&gt;总体上说，gradle感觉还是太坑了！installDebug等tasks没给机会去hack，一大堆看起来很简单，但压根做不尿的事，还有就是增强了对gradle 的编译流程认识，以及以后遇到类似的问题的时候，记得要用library的形式给现有的库进行依赖，而不是给现有的库做patch，导致自讨苦吃。&lt;/p&gt;
+
+&lt;p&gt;其实还是，不得不吐槽下gradle。。。。。。&lt;/p&gt;
+
+</description>
+        <pubDate>Thu, 06 Aug 2015 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/gradle-practice/</link>
+        <guid isPermaLink="true">http://yourdomain.com/gradle-practice/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>stetho with volley 实践</title>
+        <description>&lt;p&gt;对于stetho官方其实已经给了一个不错的解决方案，若现有项目是基于OkHttp的，可以直接参考官方文档，也有中译版，
+若现有项目是基于volley的，你就会发现其实还是需要自己去做不少事，才能完整的接入。
+为什么强调是volley呢？因为其他几个模块，如：&lt;code&gt;elements&lt;/code&gt;,&lt;code&gt;Resource&lt;/code&gt;等，简单接入就能看到了，而网络模块，
+啥都搞不到手，而接入这个库的很大一个目的就是为了使用Network部分，简单，方便。&lt;/p&gt;
+
+&lt;p&gt;所以接下来就简单谈谈如何在volley的基础上添加stetho。&lt;/p&gt;
+
+&lt;p&gt;1.添加&lt;code&gt;stetho&lt;/code&gt;的依赖&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;groovy
+compile &#39;com.facebook.stetho:stetho:1.1.1&#39;
+compile &#39;com.facebook.stetho:stetho-okhttp:1.1.1&#39;
+compile &#39;com.squareup.okhttp:okhttp-urlconnection:2.4.0&#39;
+&lt;/code&gt;
+最后一个依赖是使用Volley需要的&lt;/p&gt;
+
+&lt;p&gt;2.接着在 Application 的OnCreate中添加&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;Java
+Stetho.initialize(
+      Stetho.newInitializerBuilder(this)
+        .enableDumpapp(
+            Stetho.defaultDumperPluginsProvider(this))
+        .enableWebKitInspector(
+            Stetho.defaultInspectorModulesProvider(this))
+        .build());
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;3.给 &lt;code&gt;OkHttp&lt;/code&gt; 添加拦截器&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;Java
+    OkHttpClient client = new OkHttpClient();
+    client.networkInterceptors().add(new StethoInterceptor());
+    HttpStack stack = new OkHttpStack(client);
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;从前面三步看与使用 OkHttp 是一样的，接下来就不同了。&lt;/p&gt;
+
+&lt;p&gt;不同在于 &lt;code&gt;OkHttpStack&lt;/code&gt; 这个类并不是Stetho 给我们提供的，而是需要自己撸。。&lt;/p&gt;
+
+&lt;p&gt;在网上一搜， 看到 &lt;a href=&quot;https://gist.github.com/JakeWharton/5616899&quot;&gt;Jake Wharton&lt;/a&gt;大神给了一段代码，
+然后呢兴高采烈的撸过来，发现并不work。。。。&lt;/p&gt;
+
+&lt;p&gt;失落的我呢，就继续在网上搜，
+发现有这么一个帖子 &lt;a href=&quot;https://github.com/facebook/stetho/issues/43&quot;&gt;Network inspection not working with OkUrlFactory&lt;/a&gt;，
+不得不感叹，社区力量就是打呀！就说若你走HttpUrlConnection呢，前面设置的拦截器就没用了，就需要自己去写一大堆逻辑。。。
+看完这段的我，整个人都不好了！&lt;/p&gt;
+
+&lt;p&gt;不过那哥们后面附了一段他给的&lt;a href=&quot;https://gist.github.com/bryanstern/4e8f1cb5a8e14c202750&quot;&gt;gist&lt;/a&gt;代码，
+将其代码撸过来，可能需要删除与对不需要的Request Method， 然后问题搞定！！！&lt;/p&gt;
+
+&lt;p&gt;Tips：&lt;/p&gt;
+
+&lt;p&gt;添加了Stetho库之后，可能会遇到&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+    LICENSE.txt
+    NOTICE.txt
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;这两个错误，&lt;/p&gt;
+
+&lt;p&gt;在gradle 中添加如下代码即可&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+    packagingOptions {
+        exclude &#39;META-INF/LICENSE.txt&#39;
+        exclude &#39;META-INF/NOTICE.txt&#39;
+    }
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;结论：&lt;/p&gt;
+
+&lt;p&gt;其实没啥结论啦，就感觉Volley是后娘养得，需要自己去处理一坨东西，麻烦。。。。&lt;/p&gt;
+
+&lt;p&gt;写点略搓，希望下次有机会在用到的情况下，能省点力气。。。&lt;/p&gt;
+
+</description>
+        <pubDate>Mon, 03 Aug 2015 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/use-stetho-with-volley/</link>
+        <guid isPermaLink="true">http://yourdomain.com/use-stetho-with-volley/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>android studio or gradle 使用技能</title>
+        <description>&lt;p&gt;android studio 自己定义了一套格式aar， 在项目中如何生成这种格式呢？
+其实很简单，打开工程的 &lt;code&gt;build.gradle&lt;/code&gt; 文件，最顶上若有 &lt;code&gt;apply plugin: &#39;com.android.application&#39;&lt;/code&gt; or &lt;code&gt;apply plugin: &#39;com.android.library&#39;&lt;/code&gt;等字样的，就表明生成对应的内容，若为application，则生成apk，若为library则生成aar，  若没有上面对应字样的，加上即可生成想要的数据格式。&lt;/p&gt;
+
+</description>
+        <pubDate>Wed, 13 May 2015 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/android-studio-basic-skills/</link>
+        <guid isPermaLink="true">http://yourdomain.com/android-studio-basic-skills/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>android 无限列表</title>
+        <description>&lt;p&gt;无限列表已经是一个烂大街的东西了，本身没啥值得说的，处于学习的目的就啰嗦几句。&lt;/p&gt;
+
+&lt;p&gt;无限列表各家实现方法各不一致，不过大同小异，本次使用的方法是当用户在ListView或者RecyclerView往上滚动时，当滚动到底部或者快到底部（预加载）时，通知外部调用进行数据加载。&lt;/p&gt;
+
+&lt;p&gt;所以问题来了：
+怎么判断快要到底部？或者到了底部？&lt;/p&gt;
+
+&lt;p&gt;1.针对 AbsListView 这种在 &lt;code&gt;OnScrollListener&lt;/code&gt;里面将滚动的位置信息全部暴露给listener了,所以做起来比较简单，每次在listener中获取到事件后，即可进行计算了。
+但是这里有个小坑，就是AbsListView的Listener是设置的，也就是说同时只能有一个存在，所以设置的顺序及设置的地方还需要注意。&lt;/p&gt;
+
+&lt;p&gt;2.针对RecyclerView 在&lt;code&gt;OnScrollListener&lt;/code&gt;里面就没有暴露出任何的位置信息了，只有dx及dy，所以需要我们自行计算一下当前的firstVisibleItem、visibleItemCount等。&lt;/p&gt;
+
+&lt;p&gt;我们要做什么？
+从上面的信息看到，我们需要做的就是适配一下不同的view，然后提供一个简单的接口给外部使用，到适当的时机，让外部进行数据加载，也就是说我们只是作为一个现有view的修饰，没有我们view照样使用。&lt;/p&gt;
+
+&lt;p&gt;所以有了一个修饰基类&lt;/p&gt;
+
+&lt;p&gt;```java
+public abstract class BaseViewDecorator&amp;lt;DecoratedView, ScrollListener&amp;gt; {&lt;/p&gt;
+
+&lt;p&gt;private static final int DEFAULT_PRELOAD_OFFSET = 5;&lt;/p&gt;
+
+&lt;p&gt;private DecoratedView decoratedView;
+  private ScrollListener scrollListener;
+  private LoadingDelegate loadingDelegate;&lt;/p&gt;
+
+&lt;p&gt;private int preloadOffset = DEFAULT_PRELOAD_OFFSET;&lt;/p&gt;
+
+&lt;p&gt;public BaseViewDecorator(DecoratedView decoratedView, LoadingDelegate delegate) {
+    this.decoratedView = Preconditions.checkNotNull(decoratedView, “decorated view”);
+    loadingDelegate = Preconditions.checkNotNull(delegate, “delegate”);
+  }&lt;/p&gt;
+
+&lt;p&gt;/**
+   * let subclass to do some real things.
+   */
+  public abstract void start();&lt;/p&gt;
+
+&lt;p&gt;public DecoratedView getDecoratedView() {
+    return decoratedView;
+  }&lt;/p&gt;
+
+&lt;p&gt;public LoadingDelegate getLoadingDelegate() {
+    return loadingDelegate;
+  }&lt;/p&gt;
+
+&lt;p&gt;public BaseViewDecorator setScrollListener(ScrollListener scrollListener) {
+    this.scrollListener = scrollListener;
+    return this;
+  }&lt;/p&gt;
+
+&lt;p&gt;public ScrollListener getScrollListener() {
+    return scrollListener;
+  }&lt;/p&gt;
+
+&lt;p&gt;public int getPreloadOffset() {
+    return preloadOffset;
+  }&lt;/p&gt;
+
+&lt;p&gt;public BaseViewDecorator setPreloadOffset(int preloadOffset) {
+    if (preloadOffset &amp;lt; 0) {
+      throw new IllegalArgumentException(“preload offset cannot less than 0”);
+    }
+    this.preloadOffset = preloadOffset;
+    return this;
+  }
+}
+```&lt;/p&gt;
+
+&lt;p&gt;```java
+public interface LoadingDelegate {&lt;/p&gt;
+
+&lt;p&gt;// call when need load data.
+  void onLoadMore();&lt;/p&gt;
+
+&lt;p&gt;// tell currently is loading data or not.
+  boolean isLoading();&lt;/p&gt;
+
+&lt;p&gt;// if all data loaded, we’ll not load any more.
+  boolean isAllDataLoaded();
+}
+```
+这个基类的主要作用就是监控&lt;code&gt;DecoratedView&lt;/code&gt;的滚动消息，当上面描述的「适当时机」调用&lt;code&gt;delegate&lt;/code&gt;的方法，通知外部进行数据加载。&lt;/p&gt;
+
+&lt;p&gt;对于 &lt;code&gt;AbsListView&lt;/code&gt; 的实现&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+// scroll up
+if (previewsVisibleItem != -1 &amp;amp;&amp;amp; previewsVisibleItem &amp;lt; firstVisibleItem) {
+  if (!getLoadingDelegate().isLoading() &amp;amp;&amp;amp; !getLoadingDelegate().isAllDataLoaded()) {
+    int lastVisibleItem = firstVisibleItem + visibleItemCount - 1;
+    int lastAdapterItem = totalItemCount - 1;
+    if (lastVisibleItem &amp;gt;= (lastAdapterItem - getPreloadOffset())) {
+      getLoadingDelegate().onLoadMore();
+    }
+  }
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;很简单，就是判断是否快要显示完全了，然后调用 &lt;code&gt;onLoadMore&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;再看一下RecyclerView的实现&lt;/p&gt;
+
+&lt;p&gt;```&lt;/p&gt;
+
+&lt;p&gt;int firstVisibleItem = positionHelper.findFirstVisibleItemPosition();&lt;/p&gt;
+
+&lt;p&gt;if (previewsVisibleItem != -1 &amp;amp;&amp;amp; previewsVisibleItem &amp;lt; firstVisibleItem) {
+  if (!getLoadingDelegate().isLoading() &amp;amp;&amp;amp; !getLoadingDelegate().isAllDataLoaded()) {
+    int totalItemCount = positionHelper.getItemCount();
+    int visibleItemCount = Math.abs(
+        positionHelper.findLastVisibleItemPosition() - firstVisibleItem);
+    int lastAdapterItem = totalItemCount - 1;
+    int lastVisibleItem = firstVisibleItem + visibleItemCount - 1;
+    if (lastVisibleItem &amp;gt;= (lastAdapterItem - getPreloadOffset())) {
+      getLoadingDelegate().onLoadMore();
+    }
+  }
+}
+```&lt;/p&gt;
+
+&lt;p&gt;其实大体上基本一样，不一样的就是没法直接拿到&lt;code&gt;firstVisibleItem&lt;/code&gt;  &lt;code&gt;visibleItemCount&lt;/code&gt; 和 &lt;code&gt;totalItemCount&lt;/code&gt; 了。
+所以我们要想法搞定。&lt;/p&gt;
+
+&lt;p&gt;用RecyclerView的时候要设置一个LayoutManager，所以将目光转向了LayoutManager，然后一看就能够直接得到&lt;code&gt;totalItemCount&lt;/code&gt;了。
+剩下的两个就需要我们自行计算了。计算的时候还需要LayoutManager中View的orientation是vertical还是horizontal的。&lt;/p&gt;
+
+&lt;p&gt;直接上代码吧。&lt;/p&gt;
+
+&lt;p&gt;```&lt;/p&gt;
+
+&lt;p&gt;View findOneVisibleChild(int fromIndex, int toIndex, boolean completelyVisible,
+                           boolean acceptPartiallyVisible) {
+    OrientationHelper helper;
+    if (layoutManager.canScrollVertically()) {
+      helper = OrientationHelper.createVerticalHelper(layoutManager);
+    } else {
+      helper = OrientationHelper.createHorizontalHelper(layoutManager);
+    }&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;final int start = helper.getStartAfterPadding();
+final int end = helper.getEndAfterPadding();
+final int next = toIndex &amp;gt; fromIndex ? 1 : -1;
+View partiallyVisible = null;
+for (int i = fromIndex; i != toIndex; i += next) {
+  final View child = layoutManager.getChildAt(i);
+  final int childStart = helper.getDecoratedStart(child);
+  final int childEnd = helper.getDecoratedEnd(child);
+  if (childStart &amp;lt; end &amp;amp;&amp;amp; childEnd &amp;gt; start) {
+    if (completelyVisible) {
+      if (childStart &amp;gt;= start &amp;amp;&amp;amp; childEnd &amp;lt;= end) {
+        return child;
+      } else if (acceptPartiallyVisible &amp;amp;&amp;amp; partiallyVisible == null) {
+        partiallyVisible = child;
+      }
+    } else {
+      return child;
+    }
+  }
+}
+return partiallyVisible;   } ```
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/vinaysshenoy/mugen/blob/master/library/src/main/java/com/mugen/attachers/RecyclerViewPositionHelper.java&quot;&gt;RecyclerViewPositionHelper&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;总的来说这种实现方式还是蛮符合我自己的期望的，使用也比较灵活，可以随时换换，也比较轻量级&lt;/p&gt;
+
+&lt;p&gt;参考
+&lt;a href=&quot;https://github.com/vinaysshenoy/mugen&quot;&gt;mugen&lt;/a&gt;
+对于原库有一些地方不是很满意，自己进行了一次修改，所以上面的代码与参照的代码有所不一致。&lt;/p&gt;
+
+</description>
+        <pubDate>Wed, 13 May 2015 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/android-infinite-views/</link>
+        <guid isPermaLink="true">http://yourdomain.com/android-infinite-views/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>android 基本技能</title>
+        <description>&lt;p&gt;&lt;a href=&quot;https://github.com/wasabeef/awesome-android-ui&quot;&gt;android resource&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;blur-fragment-blur&quot;&gt;blur fragment 或者blur的实现&lt;/h2&gt;
+&lt;p&gt;blur fragment的实现与windows gdi的半透明实现原理是一样的，都是将背后的背景抠出来然后在这基础之上做效果，blur、半透明、灰度等。
+blur的源码就网上搜了。&lt;/p&gt;
+
+&lt;h2 id=&quot;pullrefresh&quot;&gt;pullRefresh&lt;/h2&gt;
+&lt;p&gt;这其实是一个ViewGroup，主要的几个点在：
+onTouchEvent、onMeasure、layout、onDraw等&lt;/p&gt;
+
+&lt;p&gt;onTouchEvent是确定是否显示下拉更新的drawable。
+onMeasure是确定当前下拉更新的drawable占用了一块空白后，其他child应当顺应往下移动一部分。onDraw等就只是绘制了。
+期间drawable的in、out动画、过程动画（如更新的菊花）等等。&lt;/p&gt;
+
+&lt;h2 id=&quot;easing-function&quot;&gt;easing function&lt;/h2&gt;
+&lt;p&gt;动画曲线，就是一坨函数了，由于不同函数的不同阶段斜率不同，震动不同，最后落地到动画的行为也就不同了。。。。&lt;/p&gt;
+
+&lt;p&gt;动画主要由Animator、Interpolator，Evaluator，
+Interpolator是确定时间线，
+TypeEvaluator确定值。&lt;/p&gt;
+
+&lt;h2 id=&quot;view&quot;&gt;view朝向检测&lt;/h2&gt;
+&lt;p&gt;对于大多数ListView都是垂直朝向的，但是总有的时候可能是水平的,需要判断下,
+&lt;code&gt;OrientationHelper&lt;/code&gt; 这个辅助函数能够省去一坨水平还是垂直的判断，并作出不同的判断方式。&lt;/p&gt;
+
+&lt;h2 id=&quot;pull-refresh&quot;&gt;pull refresh&lt;/h2&gt;
+&lt;p&gt;这个用的挺多的，原理也比较简单，参照了几个库的实现，均是采用继承自ViewGroup作为rootView，在自定义的ViewGroup中进行pull refresh or release refresh等。
+实现方法： 主要重载onMeasure、onLayout及onDispatchTouchEvent几个函数，在每次touch move的时候，记录下当前顶部的位置，在measure及onlayout的时候使用，主要在onlayout时使用，因为在onlayout的时候负责每个view的位置。然后在event up的时候采取动作 或者 在 move到一定距离后采取 refresh。 这里的refresh就是 一个 回调了。&lt;/p&gt;
+
+&lt;p&gt;这个时代有一个概念，顺滑如狗， 所以在scroll的过程中， 添加一个Scroller到这个里面来，会增加顺滑度。&lt;/p&gt;
+
+&lt;p&gt;还有一个需要注意的就是，尽可能的在xml里面实现pull refresh的attribute。  如header view， pull refresh ， release refresh ， pull ratio等。&lt;/p&gt;
+
+&lt;h2 id=&quot;eventbus&quot;&gt;eventbus&lt;/h2&gt;
+&lt;p&gt;eventbus 用的还算比较多，所以就想看看里面到底怎么实现的？
+看到真相的我也是泪牛满面，实现简单粗暴，还是有挺多值得修改的，原理就是每次register的时候，通过反射去找与eventbus定义的规则一致，然后确定到底是async？normal、background等method。然后放到一个大大的集合里面，每次post的时候，就去找这个事件类型都有谁要了？然后根据上面提到的method，one by one的send过去。&lt;/p&gt;
+</description>
+        <pubDate>Mon, 27 Apr 2015 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/android-basic-skills/</link>
+        <guid isPermaLink="true">http://yourdomain.com/android-basic-skills/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>android 道听途说</title>
+        <description>&lt;h2 id=&quot;viewstub&quot;&gt;ViewStub&lt;/h2&gt;
+
+&lt;p&gt;关键点：初始化的一个View的Visibility为Gone，
+调用了SetVisibility之后，会Inflate一个View出来，替换掉自己。
+在Inflated完成之后，会通过接口通知Inflate的结果出去。&lt;/p&gt;
+
+&lt;h2 id=&quot;window---windowmanager&quot;&gt;window - windowManager&lt;/h2&gt;
+&lt;p&gt;window是属于Activity的一个顶层窗口，负责Window该有元素的操作，如：rootView，Menu，然后通过Callback的形式将消息通知出去。&lt;/p&gt;
+</description>
+        <pubDate>Sat, 25 Apr 2015 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/android-base-framework/</link>
+        <guid isPermaLink="true">http://yourdomain.com/android-base-framework/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>BoltsFramework 简介</title>
+        <description>&lt;p&gt;前段时间 &lt;code&gt;facebook&lt;/code&gt; 开源了图像库 &lt;code&gt;Fresco&lt;/code&gt;， 于是抽空看了下，单从图像库的角度讲，可能是至今android平台最屌的了，平时项目中能用到的基本都有，而且，若要将该库接入已有的平台也非常简单，更多信息 &lt;a href=&quot;http://frescolib.org&quot;&gt;狂点Fresco 官网&lt;/a&gt; 或者 &lt;a href=&quot;http://github.com/facebook/fresco&quot;&gt;Fresco github&lt;/a&gt;。&lt;/p&gt;
+
+&lt;p&gt;在Fresco的网络缓存部分采用了一个叫 &lt;code&gt;bolts&lt;/code&gt; 的库，还挺奇怪的，只是这么一个小地方用，引入一个新库值得吗？whatever这不是我要想的问题，我要想的，facebook既然用了这么一个库，应该还比较屌吧？于是乎就开始找找相关介绍，结果就是很少有这个的介绍，难道是因为这个太low？完全没人用？还是都在用 &lt;code&gt;RxJava&lt;/code&gt; ？还是都在用原生的 &lt;code&gt;AsyncTask&lt;/code&gt; ？&lt;/p&gt;
+
+&lt;p&gt;去 &lt;a href=&quot;http://parse.com&quot;&gt;官网&lt;/a&gt; 上找了下，该公司现属facebook旗下，而且还有不少知名的公司。&lt;/p&gt;
+
+&lt;h2 id=&quot;boltsfeature&quot;&gt;Bolts主要提供两个比较大的Feature。&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;Tasks，更好的组织复杂的异步代码，与&lt;code&gt;JavaScript&lt;/code&gt;的Promise非常像，但是是针对iOS和Android的一个实现。&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://applinks.org/&quot;&gt;App Links protocl&lt;/a&gt;辅助其他apps处理deep-links的。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;针对第一个Feature还是蛮心动的，虽然看过RxJava，但是这个小巧灵活的库，对现有的代码库改造还是不错的，即使自己实现也比较靠谱。若想需要更多的操作，如：集合的操作等，还请移步RxJava。&lt;/p&gt;
+
+&lt;p&gt;这个库基本没有啥学习成本，下面介绍一些方法&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+saveAsync(obj).continueWith(new Continuation&amp;lt;ParseObject, Void&amp;gt;() {
+  public Void then(Task&amp;lt;ParseObject&amp;gt; task) throws Exception {
+    if (task.isCancelled()) {
+      // the save was cancelled.
+    } else if (task.isFaulted()) {
+      // the save failed.
+      Exception error = task.getError()
+    } else {
+      // the object was saved successfully.
+      ParseObject object = task.getResult();
+    }
+    return null;
+  }
+});
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;成功
+&lt;code&gt;java
+saveAsync(obj).onSuccess(new Continuation&amp;lt;ParseObject, Void&amp;gt;() {
+  public Void then(Task&amp;lt;ParseObject&amp;gt; task) throws Exception {
+    // the object was saved successfully.
+    return null;
+  }
+});
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;奇怪的是没有提供失败这个接口，那遇到失败怎么做？
+&lt;code&gt;java
+saveAsync(obj).continueWith(new Continuation&amp;lt;ParseObject, Void&amp;gt;() {
+  public Void then(Task&amp;lt;ParseObject&amp;gt; task) throws Exception {
+    if (task.isFaulted()) {
+      // todo process error
+      return null;
+    }
+    return null;
+  }
+});
+&lt;/code&gt;
+只要continueWith一个task，判断状态，&lt;/p&gt;
+
+&lt;p&gt;如何取消一个Task？
+看接口
+&lt;code&gt;java
+public &amp;lt;TContinuationResult&amp;gt; Task&amp;lt;TContinuationResult&amp;gt; continueWith(
+      final Continuation&amp;lt;TResult, TContinuationResult&amp;gt; continuation, final Executor executor,
+      final CancellationToken ct)
+&lt;/code&gt;
+所以我们只要弄一个&lt;code&gt;CancellationToken&lt;/code&gt; 然后Cancel就行了.
+同样还可以用 &lt;code&gt;CancellationTokenSource&lt;/code&gt; 进行取消
+在某一个task内部抛出预定义的异常同样也可以进行错误和取消处理.&lt;/p&gt;
+
+&lt;p&gt;有了上述的针对于单个Task的处理也有对应的多个Task的接口&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;java
+public static Task&amp;lt;Task&amp;lt;?&amp;gt;&amp;gt; whenAny(Collection&amp;lt;? extends Task&amp;lt;?&amp;gt;&amp;gt; tasks)
+&lt;/code&gt;
+vs
+&lt;code&gt;java
+public static Task&amp;lt;Void&amp;gt; whenAll(Collection&amp;lt;? extends Task&amp;lt;?&amp;gt;&amp;gt; tasks)
+&lt;/code&gt;
+对一堆task有需求的，这操作起来与单个的Task毫无差异。&lt;/p&gt;
+
+&lt;h2 id=&quot;section&quot;&gt;线程切换&lt;/h2&gt;
+&lt;p&gt;上面已经可以看出，能够将现有的Task进行一次级联了，但是缺少线程切换部分，Bolts是如何做的呢？
+Bolts是通过给&lt;code&gt;Continuation&lt;/code&gt;制定&lt;code&gt;ExecutorService&lt;/code&gt;的形式进行线程切换的，非常灵活。&lt;/p&gt;
+
+&lt;p&gt;示例请狂点&lt;a href=&quot;https://github.com/BoltsFramework/Bolts-Android/blob/master/BoltsTest/src/bolts/TaskTest.java&quot;&gt;这里&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;扯了一堆均是 API 文档上的，也没啥干货，只是想说，这个轻量级的库提供的几个接口给足了理由抛弃掉AsyncTask，提供更好的代码模块化，让整个业务相关的代码放在一起。只要定义一堆&lt;code&gt;ExecutorService&lt;/code&gt;后,也减少了是个人都&lt;code&gt;new Thread&lt;/code&gt;的问题.&lt;/p&gt;
+
+&lt;p&gt;ps:若觉得这个提供的东西太少,可以参考&lt;code&gt;RxJava&lt;/code&gt;这个比较重量级,也需要团队成员进行一下学习.&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://blog.parse.com/announcements/lets-bolt/&quot;&gt;1&lt;/a&gt;
+&lt;a href=&quot;http://blog.parse.com/learn/introducing-bolts-for-parse-sdks&quot;&gt;2&lt;/a&gt;&lt;/p&gt;
+</description>
+        <pubDate>Sat, 18 Apr 2015 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/BoltsFramework/</link>
+        <guid isPermaLink="true">http://yourdomain.com/BoltsFramework/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>chrome在windows平台对malloc、alloc等的替换方式</title>
+        <description>&lt;h2 id=&quot;section&quot;&gt;背景&lt;/h2&gt;
+
+&lt;p&gt;这里的标准内存申请释放指的是语言本身使用的malloc、free、calloc、new、delete等。&lt;/p&gt;
+
+&lt;p&gt;平台windows 7. 其他平台得绕道了- -！。&lt;/p&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;热身&lt;/h2&gt;
+
+&lt;p&gt;使标准库的malloc、free等函数调用我们自己的实现通常有两种方法，一种，iat hook等形式，另外一种就是替换标准库为新实现。&lt;/p&gt;
+
+&lt;p&gt;第一种实现估计是老生常谈了，没啥新颖的，但是会杀毒软件等当为病毒等玩意儿干，狗拿耗子啊。&lt;/p&gt;
+
+&lt;p&gt;第二种方法，在没有看过chrome的allocator工程的具体实现之前或者说没看过prep_libc.py这个脚本以前，一直都没有这个概念，又一次感觉弱爆了。&lt;/p&gt;
+
+&lt;p&gt;技术要点&lt;/p&gt;
+
+&lt;p&gt;其实第二种说白了也很简单，实现就是通过visual studio 提供lib命令，将库里面的默认malloc等实现给移除。链接库的时候，使用新的libcmt.lib进行链接即可。由于是已经将malloc等函数给移除了，所以这时就需要自己实现一份就行了，然后链接，不会出现二义性。世界变得又美好了。&lt;/p&gt;
+
+&lt;p&gt;这份新实现的malloc等函数就可以任意的实现了（chrome中在base/allocator/allocator_shim.cc中）。如：chrome用tcmalloc等来替换原生的内存申请函数。至于tcmalloc的性能什么的自行google。&lt;/p&gt;
+
+&lt;p&gt;来一段内存申请的函数瞧瞧&lt;/p&gt;
+
+&lt;p&gt;```cpp
+void* malloc(size_t size) __THROW {
+  void* ptr;
+  for (;;) {
+#ifdef ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
+    switch ( allocator) {
+      case JEMALLOC :
+        ptr = je_malloc( size);
+        break;
+      case WINHEAP :
+      case WINLFH :
+        ptr = win_heap_malloc( size);
+        break;
+      case TCMALLOC :
+      default:
+        ptr = do_malloc( size);
+        break;
+    }
+#else
+    // TCMalloc case.
+    ptr = do_malloc( size);
+#endif
+    if ( ptr)
+      return ptr ;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;if (! new_mode || !call_new_handler (true))
+  break;   }   return ptr; } ``` 就一堆宏了，说到底都交给tcmalloc去干苦力去，没啥好讲的。
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在进入prep_libc.py脚本之前，来一段lib里面的内容看看，&lt;/p&gt;
+
+&lt;p&gt;从%VCInstallDir%VC\lib\libcmt.lib中导出关于malloc.obj部分的信息&lt;/p&gt;
+
+&lt;p&gt;```
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\malloc.obj
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\msize.obj
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\realloc.obj
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\recalloc.obj&lt;/p&gt;
+
+&lt;p&gt;\libcmtd.lib&lt;/p&gt;
+
+&lt;p&gt;f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\xmt_obj\malloc.obj
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\xmt_obj\msize.obj
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\xmt_obj\realloc.obj
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\xmt_obj\recalloc.obj
+```
+其余内存省略了。。&lt;/p&gt;
+
+&lt;p&gt;从chrome的allocator工程中导出的信息看一下
+&lt;code&gt;cpp
+..\..\build\Debug\obj\allocator\allocator_shim.obj
+..\..\build\Debug\obj\allocator\jemalloc.obj
+&lt;/code&gt;
+注意：&lt;/p&gt;
+
+&lt;p&gt;allocator工程的内存申请释放函数在allocator_shim.obj中。&lt;/p&gt;
+
+&lt;p&gt;好叻，现在的任务就是讲libcmtd.lib中的malloc.obj给移走。剩余部分不变，然后依赖上添加allocator工程即可。工程属性中添加上忽略libcmtd.lib。不忽略就会依赖默认的了- -！&lt;/p&gt;
+
+&lt;p&gt;大体思路已经屡清了。就是将%VCInstallDir%VC\lib\libcmtd.lib拷贝一份，拷贝内容的malloc.obj等内容是被移除的，然后依赖allocator库。去掉默认libcmtd的依赖。&lt;/p&gt;
+
+&lt;p&gt;上prep_libc.py&lt;/p&gt;
+
+&lt;p&gt;```python
+#!/usr/bin/env python
+# Usage: prep_libc.py &lt;vclibdir&gt; &lt;outputdir&gt; &lt;arch&gt;
+#
+# VCLibDir is the path where VC is installed, something like:
+#    C:\Program Files\Microsoft Visual Studio 8\VC\lib
+# OutputDir is the directory where the modified libcmt file should be stored.
+# arch is either &#39;ia32&#39; or &#39;x64&#39;&lt;/arch&gt;&lt;/outputdir&gt;&lt;/vclibdir&gt;&lt;/p&gt;
+
+&lt;p&gt;import os
+import shutil
+import subprocess
+import sys&lt;/p&gt;
+
+&lt;p&gt;def run(command, filter=None):
+  “&quot;”Run |command|, removing any lines that match |filter|. The filter is
+  to remove the echoing of input filename that ‘lib’ does.”””
+  popen = subprocess.Popen(
+      command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  out, _ = popen.communicate()
+  for line in out.splitlines():
+    if filter and line.strip() != filter:
+      print line
+  return popen.returncode&lt;/p&gt;
+
+&lt;p&gt;def main():
+  bindir = ‘SELF_X86’
+  objdir = ‘INTEL’
+  vs_install_dir = sys.argv[1]
+  outdir = sys.argv[2]
+  if “x64” in sys.argv[3]:
+    bindir = ‘SELF_64_amd64’
+    objdir = ‘amd64’
+    vs_install_dir = os.path.join(vs_install_dir, ‘amd64’)
+  output_lib = os.path.join(outdir, ‘libcmt.lib’)
+  shutil.copyfile(os.path.join(vs_install_dir, ‘libcmt.lib’), output_lib)
+  shutil.copyfile(os.path.join(vs_install_dir, ‘libcmt.pdb’),
+                  os.path.join(outdir, ‘libcmt.pdb’))&lt;/p&gt;
+
+&lt;p&gt;vspaths = [
+    ‘build\intel\mt_obj\’,
+    ‘f:\dd\vctools\crt_bld\’ + bindir + \
+      ‘\crt\src\build\’ + objdir + ‘\mt_obj\’,
+    ‘F:\dd\vctools\crt_bld\’ + bindir + \
+      ‘\crt\src\build\’ + objdir + ‘\mt_obj\nativec\\’,
+    ‘F:\dd\vctools\crt_bld\’ + bindir + \
+      ‘\crt\src\build\’ + objdir + ‘\mt_obj\nativecpp\\’,
+    ‘f:\binaries\Intermediate\vctools\crt_bld\’ + bindir + \
+      ‘\crt\prebuild\build\INTEL\mt_obj\cpp_obj\\’,
+    ]&lt;/p&gt;
+
+&lt;p&gt;objfiles = [‘malloc’, ‘free’, ‘realloc’, ‘new’, ‘delete’, ‘new2’, ‘delete2’,
+              ‘align’, ‘msize’, ‘heapinit’, ‘expand’, ‘heapchk’, ‘heapwalk’,
+              ‘heapmin’, ‘sbheap’, ‘calloc’, ‘recalloc’, ‘calloc_impl’,
+              ‘new_mode’, ‘newopnt’, ‘newaopnt’]
+  for obj in objfiles:
+    for vspath in vspaths:
+      cmd = (‘lib /nologo /ignore:4006,4014,4221 /remove:%s%s.obj %s’ %
+             (vspath, obj, output_lib))
+      run(cmd, obj + ‘.obj’)&lt;/p&gt;
+
+&lt;p&gt;if &lt;strong&gt;name&lt;/strong&gt; == “&lt;strong&gt;main&lt;/strong&gt;”:
+  sys.exit(main())
+```&lt;/p&gt;
+
+&lt;p&gt;内容不多，看vspaths就是构造一个路径，与平台及体系结构有关。&lt;/p&gt;
+
+&lt;p&gt;具体路劲参照这个&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cpp
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\malloc.obj
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;objfiles就是我们要替换的一些obj文件&lt;/p&gt;
+
+&lt;p&gt;最后就是调用lib命令来对库中的一些obj进行移除。完事。&lt;/p&gt;
+
+&lt;p&gt;大家可能还有一个小疑问就是，&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;
+f:\dd\vctools\crt_bld\SELF_X86\crt\src\build\INTEL\mt_obj\malloc.obj
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;这个路劲，基本上没有人的电脑上有这么一个路劲，那他到底是什么呢？或者平时调试标准库的时候，就会弹出一个这么样的路径，提示我们有错。问题是都没有这个路劲？&lt;/p&gt;
+
+&lt;p&gt;再想想，由于是静态库，只是将我们的obj组织在了一块，说明原始obj放到了这么一个路径，这些苦都是微软提供给我们的，so。这个路径是微软编译这些库的时候的路径。那我们为什么能够找到他的呢？神秘的pdb现身说法了。他知道一切。这就是为什么，上面的python脚本中，要连带pdb一块拷走了。&lt;/p&gt;
+
+&lt;p&gt;所以呢，下次看到这个dd啥的路劲的时候，就不惊讶了。&lt;/p&gt;
+
+&lt;h2 id=&quot;section-2&quot;&gt;结论&lt;/h2&gt;
+
+&lt;p&gt;通过这个allocator长了两个见识，&lt;/p&gt;
+
+&lt;p&gt;1.lib命令的使用，有了这个玩意儿，我至少能够知道lib里面放了点啥不至于两眼一抹黑。&lt;/p&gt;
+
+&lt;p&gt;2.标准库的new和delete的hook，用这玩意儿，明显舒畅多了。又不至于mfc那种，各种宏。&lt;/p&gt;
+</description>
+        <pubDate>Sat, 02 Nov 2013 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/chrome-memory-alloc/</link>
+        <guid isPermaLink="true">http://yourdomain.com/chrome-memory-alloc/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>线程安全的单例实现</title>
+        <description>&lt;h2 id=&quot;section&quot;&gt;背景描述&lt;/h2&gt;
+&lt;p&gt;说明：singleton有各式各样的翻译，因人口味而异，所以，本文中对singleton就直接用英文了。&lt;/p&gt;
+
+&lt;p&gt;singleton的实现方式也多多，以下只是做一种非侵入的使用double-checked locking方式进行描述，有错误的地方尽情拍砖。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;在整个软件开发中，singleton应该是使用最广泛的一种设计模式，也几乎每个人都写过若个版本的单例实现，在这些singleton实现中，很大一部分实现均是有问题的，甚至是错误。以下从两个方面进行说明为什么，第一：singleton的生命周期问题，如：有A、B两个singleton，初始化顺序为A、B，析构顺序当然为B、A，但是在A析构时调用了B，这时候将会产生什么结果？ 第二：C++11以前语言本身没有提供内存边界（memory barrier）这个东西（其他语言也会有这个问题），C++的内存模型就不支持内存边界，导致在编译器优化或者cpu乱序（out-of-order）执行时，产生了非预期的结果，且该现象很难复现。
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;如果您已经熟练使用singleton我建议您直接跳到singleton高级版，查看最后c++11带来的memory barrier给C++程序猿带来的福利。&lt;/p&gt;
+
+&lt;p&gt;singleton初级版
+&lt;code&gt;cpp
+Foo* GetFooInstance() {  
+    static Foo foo;  
+    return &amp;amp;foo;  
+}
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;或者&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cpp
+Foo&amp;amp; GetFooInstance() {  
+    static Foo foo;  
+    return foo;  
+}
+&lt;/code&gt;
+这种实现是最原始的版本，有时在项目中也是见的最多的一个版本，在单线程程序，甚至在许多单核设备上问题都不是很大，但是遇到多核多线程时，也许就会跪了，是否会有问题还与Foo在构造函数中是否有额外的初始化有关，额外初始化就会花费时间，这样多线程访问到&lt;code&gt;GetFooInstance&lt;/code&gt;时，也许会有可能会构造两次foo。这样就有了下面一个升级版。&lt;/p&gt;
+
+&lt;p&gt;singleton升级版&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cpp
+Foo* GetFooInstance() {  
+    static Foo* foo = NULL;  
+    if (NULL == foo) {  
+        foo = new Foo;   // (1)
+    }  
+    return foo;  
+}
+&lt;/code&gt;
+这次升级后与上次相差不大，但是可以在(1)后面干点额外的东西了，如二段初始化等，但是还是没避免多线程问题。再次升级一下。&lt;/p&gt;
+
+&lt;p&gt;```cpp
+template &lt;typename t=&quot;&quot;&gt;
+class DefaultAllocatorTraits
+{
+public:
+    static T* Allocate()
+    {
+        return new T;
+    }
+    static void Delete(T* t)
+    {
+        typedef char type_must_be_complete[ sizeof(T)? 1: -1 ];
+        delete t;
+    }
+};&lt;/typename&gt;&lt;/p&gt;
+
+&lt;p&gt;template &amp;lt;class T, class allocator = DefaultAllocatorTraits&lt;t&gt; &amp;gt;
+class Singleton    {
+public:
+    Singleton()
+        : singleton_(NULL) {
+        InitializeCriticalSection(&amp;amp;wait_event_);
+    }
+    ~Singleton() {
+        DeleteCriticalSection(&amp;amp;wait_event_);
+        allocator::Delete(singleton_);
+    }
+    T* GetInstance() {
+        // (1)
+        if (NULL == singleton_)    {
+            // (2)
+            EnterCriticalSection(&amp;amp;wait_event_);
+            // (3)
+            if (NULL == singleton_)    {
+                singleton_ = allocator::Allocate();
+            }
+            LeaveCriticalSection(&amp;amp;wait_event_);
+        }
+        return singleton_;
+    }
+private:
+    CRITICAL_SECTION wait_event_;
+    T*  singleton_;
+};
+```&lt;/t&gt;&lt;/p&gt;
+
+&lt;p&gt;以上代码使用方式为&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cpp
+static Singleton&amp;lt;Foo&amp;gt; foo;  
+foo.GetInstance();
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;代码看似很长，只是想看清所有内容而已，全部内容都在GetInstance中了，这里面的代码是以windows为例的，为了示例就没有封装锁了，意思一下即可，锁的位置可以放到(1)处，这时候呢每次进入到这个函数里面都得加一次锁，虽然没什么问题，但是消耗挺大的，所以放到（2）处，当获取到临界区的使用权限后，在对singleton_ 进行一次检查,并申请内存内存初始化等,这里进行二段初始化、三段初始化都已经没有问题了，这就是所谓的“Double-Checked Locking”。以下简称DCL。 
+DCL解决了大部分情况下遇到的多数问题，如碰到多线程，即使两个线程都进入到二的位置，A线程获得临界区，进入到（3）然后执行完毕后退出临界区，B线程再进入，这时候由于检查了singleton_的有效性，所以不会再次初始化，以后都将不会进入到（2），所以这个版本的singleton基本能够投入使用了。 
+但是这也不是没问题的，这里的singleton只负责了申请内存，没有释放，当然整个程序都有效的，有无释放都无所谓了。不过没释放总感觉少点啥，不是吗？&lt;/p&gt;
+
+&lt;p&gt;singleton高级版
+传说中，C提供了一个高端的API&lt;code&gt;[atexit](http://www.cplusplus.com/reference/cstdlib/atexit/)&lt;/code&gt;,这个东西呢能让我们注册一个在程序退出时调用函数的方法，在析构之前，也挺好，如果看着不爽或者不太想用这个时，可以自行实现，chrome的base库里面提供了一个实现&lt;a href=&quot;http://src.chromium.org/viewvc/chrome/trunk/src/base/at_exit.h?revision=148405&quot;&gt;AtExit&lt;/a&gt;,这个都是小事，问题是这个能够辅助我们解决内存释放问题了，修改上面的单例，在申请内存的地方注册一下退出接口。我这里就使用的是&lt;code&gt;AtExitManager&lt;/code&gt;因为C库那玩意儿不带参数，不能满足我的这个需求。 
+修改如下&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cpp
+T* GetInstance()
+{
+    if (NULL == singleton_)
+    {
+        EnterCriticalSection(&amp;amp;wait_event_);
+        if (NULL == singleton_)
+        {
+            singleton_ = memory_traits::Allocate();
+            AtExitManager::RegisterCallback(Singleton::OnExit, this);
+        }
+        LeaveCriticalSection(&amp;amp;wait_event_);
+    }
+    return singleton_;
+}
+static void OnExit(void* singleton) {
+    Singleton&amp;lt;T, allocator&amp;gt;* me =
+        reinterpret_cast&amp;lt;Singleton&amp;lt;T, allocator&amp;gt;*&amp;gt;(singleton);
+        allocator::Delete(me-&amp;gt;singleton_);
+}
+&lt;/code&gt;
+实现还是比较粗糙的，但是至少能够初始化，能够释放了，不考他自身自灭了。 
+到了现在，还是没能解决我的目的，重新初始化及&lt;a href=&quot;http://en.wikipedia.org/wiki/Out-of-order_execution&quot;&gt;乱序执行&lt;/a&gt;的问题。甚至有时候编译器优化的recorder等一系列的问题，都有可能导致代码并不是按照人想的一样执行 
+如&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cpp
+T* GetInstance()
+{
+    // (1)
+    if (NULL == singleton_)
+    {
+        // (2)
+        EnterCriticalSection(&amp;amp;wait_event_);
+        // (3)
+        if (NULL == singleton_)
+        {
+            // (4)
+            singleton_ = allocator::Allocate();
+        }
+        LeaveCriticalSection(&amp;amp;wait_event_);
+    }
+    return singleton_;
+}
+&lt;/code&gt;
+这段代码中，（3）、（4）处的内容被out-of-order执行的cpu弄到前面去执行的话，产生的问题将不可预料，当然这种情况也极少。 
+在C++11修改过多线程的内存模型后，添加了memory barrier的东西，使指令在指定的一段内存中不会被使用乱序执行，当然memory barrier这个东西不是所有平台都支持的。有了这个之后修改上面的内容，（注：在java5.1以前的内存模型也会有这个问题，至于现在是否有修改不知道。。。求答案）。&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cpp
+T* GetInstance()
+{
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if (NULL == singleton_)
+    {
+        EnterCriticalSection(&amp;amp;wait_event_);
+        if (NULL == singleton_)
+        {
+            singleton_ = allocator::Allocate();
+        }
+        LeaveCriticalSection(&amp;amp;wait_event_);
+    }
+    std::atomic_thread_fence(std::memory_order_release);
+    return singleton_;
+}
+&lt;/code&gt;
+至于&lt;code&gt;memory_order_release&lt;/code&gt;放到&lt;code&gt;singleton_ = allocator::Allocate()&lt;/code&gt;后面也没太大关系。 
+有了这么一玩意儿,在fence之间的代码就不会乱序执行了,当然需要编译器支持才能编译的过,详情参见&lt;a href=&quot;http://www.cplusplus.com/reference/atomic/atomic_thread_fence/?kw=atomic_thread_fence&quot;&gt;cplusplus.com&lt;/a&gt;. 
+注：linux平台提供了一些barrier可以使用，也能解决该问题。 
+最后一个问题，单例牺牲后的恢复，这个问题，在前面提供析构函数的地方基本已经得到解决，有了析构函数之后，对原有变量稍加改动即可。 
+因为，使用AtExitManager来控制生命周期后，按如下方式使用：&lt;/p&gt;
+
+&lt;p&gt;&lt;code&gt;cpp
+int main() {
+    AtExitManager exit_manager;
+    // other operations.
+    return 0;
+}
+&lt;/code&gt;
+&lt;code&gt;exit_manager&lt;/code&gt;的生命周期受main控制，所以呢，肯定先于其他静态变量析构，在&lt;code&gt;exit_manager&lt;/code&gt;退出时就会一一将单例析构，即使出现A B B A，A在调用B的情况，也会重新初始化单例B，因为静态变量还没析构，继续注册，继续析构，所以这种问题得以解决。 
+到这里实现的单例，应该来说还是比较完善了。可以尽情的happy了。 
+### lock free ###&lt;/p&gt;
+
+&lt;p&gt;前面的所有实现中均采用了锁的机制，现在应用的也挺多，但是编程难度挺高的一个lock free，可以让减少锁的使用，同时还可以提高性能，由于这个话题没能具体衡量，所以只好简要一笔带过。留作以后完善。&lt;/p&gt;
+
+&lt;p&gt;直接参考chrome的源码也就是讲前面的锁换成一个spin lock，采用原子操作，减少整体线程切换及切换到内核状态等一系列的开销。&lt;/p&gt;
+
+&lt;p&gt;参考实现：&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://src.chromium.org/viewvc/chrome/trunk/src/base/lazy_instance.h?revision=204953&quot;&gt;chrome&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;这里面的lazy_instance就可以稍加修改拿来使用。&lt;/p&gt;
+
+&lt;h2 id=&quot;section-1&quot;&gt;结论&lt;/h2&gt;
+
+&lt;p&gt;最终我们使用DCL的方式实现了一个近乎完善的singleton，但是这只是其中的一种方法，如：c++11提供了一个方法&lt;a href=&quot;http://en.cppreference.com/w/cpp/thread/call_once&quot;&gt;call_once&lt;/a&gt;，这个一看名字，对于单例来说太爽了。方法多多。&lt;/p&gt;
+
+&lt;h3 id=&quot;section-2&quot;&gt;参考&lt;/h3&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.cs.umd.edu/~pugh/java/memoryModel/DoubleCheckedLocking.html&quot;&gt;Double-Checked Locking is Broken&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.aristeia.com/Papers/DDJ_Jul_Aug_2004_revised.pdf&quot;&gt;C++ and the Perils of Double-Checked Locking by scott meyers and andrei alexandrescu&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11/&quot;&gt;Double-Checked Locking Is Fixed In C++11&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://src.chromium.org/viewvc/chrome/trunk/src/base/lazy_instance.h?revision=204953&quot;&gt;chrome lazy_instance&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;[api design for c++ 第三章]&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Fri, 25 Oct 2013 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/sigleton/</link>
+        <guid isPermaLink="true">http://yourdomain.com/sigleton/</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
+        <title>宏的妙用</title>
+        <description>&lt;p&gt;尽管宏在C++中名声不怎么好，但是有时候使用起宏来还是挺方便直观的，一些小技巧能够省下许多代码篇幅也是很爽的。&lt;/p&gt;
+
+&lt;p&gt;背景&lt;/p&gt;
+
+&lt;p&gt;有时候需要定义一些枚举和这些枚举对应的字符串，如：错误代码及错误描述，经常我们按照如下方式进行&lt;/p&gt;
+
+&lt;p&gt;复制代码
+```cpp
+enum ErrorCode {
+    kOK,
+    kFailed,
+    kUnkown,
+    kFoo,
+    kBar,
+};&lt;/p&gt;
+
+&lt;p&gt;const char* error_details_ [] = {
+    “kOk”,
+    “kFailed”,
+    “kUnkown”,
+    “kFoo”,
+    “kBar”,
+};
+```
+复制代码
+当错误代码数量不是很大时，这种维护可能还没问题，当遇到枚举的值发生变更及修改调整等。可能就需要付出惨烈的代价了，因为量大，所以修改起来比较麻烦，还有位置ID的对应等，于是产生了下面一种升级描述方式。&lt;/p&gt;
+
+&lt;p&gt;复制代码
+&lt;code&gt;cpp
+struct ErrorDescrible {
+    int error_code;
+    const char* describle;
+} error_details_[] = {
+    {kOK, &quot;kOK&quot;},
+    {kFailed, &quot;kFailed&quot;},
+    {kUnkown, &quot;kUnkown&quot;},
+    {kFoo, &quot;kFoo&quot;},
+    {kBar, &quot;kBar&quot;},
+};
+&lt;/code&gt;
+复制代码
+这种方式呢，针对于枚举的值进行任何的变更都将没太大的影响，不再受枚举的值得约束了，同样修改字符串也变得比较直观了，没那么多束手束脚的内容。&lt;/p&gt;
+
+&lt;p&gt;但是问题又来了，假如有100个这种类似的枚举、枚举值及字符串，枚举就得写两次，明显效率低下有没有什么更好的改进方法呢？既能省下重复的代码行，又能完成目前这种简单的需求？&lt;/p&gt;
+
+&lt;p&gt;这里呢可以使用宏对这些重复的代码进行扩展。&lt;/p&gt;
+
+&lt;p&gt;先上代码看看：&lt;/p&gt;
+
+&lt;p&gt;复制代码
+```cpp
+#define ERROR_EXPAND(MAP)\
+    MAP(OK, 1, “OK”)\
+    MAP(Failed, 2, “Failed”)\
+    MAP(Unkown, 3, “Unkown”)\
+    MAP(Foo, 4, “Foo”)\
+    MAP(Bar, 5, “Bar”)\&lt;/p&gt;
+
+&lt;p&gt;enum NewErrorCode {
+#define MAP(code, value, describle) k##code = value,
+    ERROR_EXPAND(MAP)
+#undef MAP
+};&lt;/p&gt;
+
+&lt;p&gt;struct ErrorDescrible {
+    int error_code;
+    const char* describle;
+} error_details_[] = {
+#define MAP(code, value, describle) {k##code, describle},
+    ERROR_EXPAND(MAP)
+#undef MAP
+};
+```
+复制代码
+完成的功能基本一样，而且还扩展了枚举的值不在是从0开始了，可以说是任意的了。有了这个这个妈妈再也不怕我重复写这块代码了。简洁直观，任意修改，调动。&lt;/p&gt;
+
+&lt;p&gt;看懂了之后其实很简单，就是通过宏扩展将宏一行一行的展开，根据需要挑选出本结构关心的字段，然后拼凑成一个简要的代码，这样就不会再多出写重复的代码。&lt;/p&gt;
+
+&lt;p&gt;原理分析：&lt;/p&gt;
+
+&lt;p&gt;将ERROR_EXPAND看成一个元组或者数组的话，map就是应用在其上的一个修士，将现有的内容转换成我想要的。通过不同的MAP宏扩展成不同的内容，完成不同的功能，&lt;/p&gt;
+
+&lt;p&gt;当与枚举关联两三个时，优势比较明显，但是若枚举扩展时变换太多，会导致代码不那么直观，也无法调试。&lt;/p&gt;
+
+&lt;p&gt;pros：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt; 减少枚举的重复，使代码读起来更轻松。
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;cons：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt; 缺点就是当不熟悉这个枚举时，或者不熟悉如何展开时，对许多宏的展开还是略有点茫然。
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;参考：&lt;/p&gt;
+
+&lt;p&gt;libuv的源码。&lt;/p&gt;
+</description>
+        <pubDate>Fri, 25 Oct 2013 00:00:00 +0800</pubDate>
+        <link>http://yourdomain.com/macro-tricks/</link>
+        <guid isPermaLink="true">http://yourdomain.com/macro-tricks/</guid>
+        
+        <category>c++</category>
+        
+        <category>macro</category>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+  </channel>
+</rss>
